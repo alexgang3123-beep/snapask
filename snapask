@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SnapAsk" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>SnapAsk</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --text: #f0f0f0;
+      --muted: #888;
+      --accent: #7c6ef5;
+      --accent-dim: rgba(124,110,245,0.15);
+      --accent-glow: rgba(124,110,245,0.3);
+      --success: #4ade80;
+      --success-dim: rgba(74,222,128,0.12);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    #app {
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+    }
+
+    /* Header */
+    .header {
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .history-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    /* Main content */
+    .content {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Drop zone */
+    .dropzone {
+      border: 1.5px dashed var(--border2);
+      border-radius: var(--radius);
+      background: var(--surface);
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dropzone:active { border-color: var(--accent); background: var(--accent-dim); }
+    .dropzone.has-image { border-style: solid; border-color: var(--border2); }
+
+    .dropzone img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+    }
+
+    .dropzone-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 1;
+    }
+
+    .dropzone-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .dropzone-label {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .dropzone-label strong { color: var(--text); font-weight: 500; }
+
+    .img-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7));
+      border-radius: var(--radius);
+      z-index: 2;
+      display: flex;
+      align-items: flex-end;
+      padding: 14px;
+    }
+
+    .img-overlay-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border2);
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active { background: var(--surface2); }
+
+    .btn-ask {
+      grid-column: 1 / -1;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-size: 15px;
+      padding: 15px;
+      border-radius: var(--radius);
+      letter-spacing: -0.2px;
+    }
+
+    .btn-ask:active { background: #6a5ee0; border-color: #6a5ee0; }
+    .btn-ask:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* API Key input */
+    .key-section {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+
+    .key-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .key-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .key-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .key-input::placeholder { color: var(--muted); }
+    .key-input:focus { border-color: var(--accent); }
+
+    .key-save-btn {
+      padding: 10px 14px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .key-saved { color: var(--success); font-size: 12px; margin-top: 6px; display: none; }
+    .key-saved.show { display: block; }
+
+    /* Answer */
+    .answer-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .answer-header {
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .answer-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .answer-body {
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .answer-body .math {
+      font-family: 'DM Mono', monospace;
+      background: var(--surface2);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #c4b5fd;
+    }
+
+    /* Suggestions */
+    .suggestions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .suggestion-chip {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .suggestion-chip:active { color: var(--accent); border-color: var(--accent); }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 18px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error-card {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #f87171;
+      line-height: 1.6;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 10px 18px;
+      font-size: 13px;
+      color: var(--text);
+      transition: transform 0.3s ease;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Hidden file input */
+    #file-input, #camera-input { display: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      SnapAsk
+    </div>
+    <div class="history-btn" onclick="clearAll()" title="Clear">✕</div>
+  </div>
+
+  <div class="content">
+
+    <!-- API Key -->
+    <div class="key-section">
+      <div class="key-label">Anthropic API Key</div>
+      <div class="key-input-row">
+        <input class="key-input" id="api-key" type="password" placeholder="sk-ant-..." />
+        <button class="key-save-btn" onclick="saveKey()">Save</button>
+      </div>
+      <div class="key-saved" id="key-saved">✓ Key saved</div>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="dropzone" id="dropzone" onclick="triggerUpload()">
+      <div class="dropzone-inner" id="dz-inner">
+        <div class="dropzone-icon">📸</div>
+        <div class="dropzone-label"><strong>Tap to upload</strong> a photo<br/>homework, text, anything</div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button class="btn" onclick="triggerCamera()">📷 Camera</button>
+      <button class="btn" onclick="triggerUpload()">🖼️ Gallery</button>
+      <button class="btn btn-ask" id="ask-btn" onclick="askAI()" disabled>✦ Ask AI</button>
+    </div>
+
+    <!-- Answer area -->
+    <div id="answer-area"></div>
+
+    <!-- Suggestions -->
+    <div class="suggestions" id="suggestions" style="display:none">
+      <div class="suggestion-chip" onclick="followUp('Explain this step by step')">Step by step</div>
+      <div class="suggestion-chip" onclick="followUp('Give me a simpler explanation')">Simpler please</div>
+      <div class="suggestion-chip" onclick="followUp('Show me a similar example')">Similar example</div>
+      <div class="suggestion-chip" onclick="followUp('Why is this the answer?')">Why?</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="file-input" accept="image/*" onchange="handleFile(this)" />
+<input type="file" id="camera-input" accept="image/*" capture="environment" onchange="handleFile(this)" />
+
+<script>
+  let imageBase64 = null;
+  let imageType = null;
+  let lastQuestion = null;
+
+  window.onload = () => {
+    const saved = localStorage.getItem('snapask_key');
+    if (saved) {
+      document.getElementById('api-key').value = saved;
+      document.getElementById('key-saved').classList.add('show');
+    }
+  };
+
+  function saveKey() {
+    const val = document.getElementById('api-key').value.trim();
+    if (!val) return showToast('Paste your API key first');
+    localStorage.setItem('snapask_key', val);
+    document.getElementById('key-saved').classList.add('show');
+    showToast('API key saved ✓');
+  }
+
+  function getKey() {
+    return document.getElementById('api-key').value.trim() || localStorage.getItem('snapask_key') || '';
+  }
+
+  function triggerUpload() { document.getElementById('file-input').click(); }
+  function triggerCamera() { document.getElementById('camera-input').click(); }
+
+  function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target.result;
+      imageType = file.type || 'image/jpeg';
+      imageBase64 = result.split(',')[1];
+
+      const dz = document.getElementById('dropzone');
+      dz.classList.add('has-image');
+      dz.innerHTML = `
+        <img src="${result}" alt="uploaded" />
+        <div class="img-overlay">
+          <div class="img-overlay-label">📎 ${file.name}</div>
+        </div>
+      `;
+
+      document.getElementById('ask-btn').disabled = false;
+      document.getElementById('answer-area').innerHTML = '';
+      document.getElementById('suggestions').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+
+  async function askAI(extraText) {
+    const key = getKey();
+    if (!key) return showToast('Add your API key first');
+    if (!imageBase64) return showToast('Upload a photo first');
+
+    const question = extraText || 'Look at this image carefully and answer or explain it fully. If it contains a question, math problem, text, or anything to solve — do it step by step. Be clear and concise.';
+    lastQuestion = question;
+
+    const area = document.getElementById('answer-area');
+    area.innerHTML = `
+      <div class="answer-card">
+        <div class="answer-header"><div class="answer-dot"></div> Thinking...</div>
+        <div class="loading"><div class="spinner"></div> Analyzing your image...</div>
+      </div>
+    `;
+    document.getElementById('suggestions').style.display = 'none';
+    document.getElementById('ask-btn').disabled = true;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-calls': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: 1024,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: imageType, data: imageBase64 } },
+              { type: 'text', text: question }
+            ]
+          }]
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+
+      const text = data.content?.[0]?.text || 'No response.';
+      area.innerHTML = `
+        <div class="answer-card">
+          <div class="answer-header"><div class="answer-dot"></div> AI Answer</div>
+          <div class="answer-body">${escapeHtml(text)}</div>
+        </div>
+      `;
+      document.getElementById('suggestions').style.display = 'flex';
+    } catch (err) {
+      area.innerHTML = `<div class="error-card">⚠️ ${escapeHtml(err.message)}</div>`;
+    }
+
+    document.getElementById('ask-btn').disabled = false;
+  }
+
+  function followUp(prompt) {
+    askAI(prompt);
+  }
+
+  function clearAll() {
+    imageBase64 = null;
+    imageType = null;
+    const dz = document.getElementById('dropzone');
+    dz.classList.remove('has-image');
+    dz.innerHTML = `
+      <div class="dropzone-inner" id="dz-inner">
+        <div class="dropzone-icon">📸</div>
+        <div class="dropzone-label"><strong>Tap to upload</strong> a photo<br/>homework, text, anything</div>
+      </div>
+    `;
+    dz.onclick = triggerUpload;
+    document.getElementById('answer-area').innerHTML = '';
+    document.getElementById('suggestions').style.display = 'none';
+    document.getElementById('ask-btn').disabled = true;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
