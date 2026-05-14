@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SnapAsk" />
+  <meta name="apple-mobile-web-app-title" content="QRDrop" />
   <meta name="theme-color" content="#0a0a0a" />
-  <title>SnapAsk</title>
+  <title>QRDrop</title>
   <link rel="manifest" href="manifest.json" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -17,244 +18,401 @@
       --surface: #141414;
       --surface2: #1e1e1e;
       --border: rgba(255,255,255,0.08);
-      --border2: rgba(255,255,255,0.14);
+      --border2: rgba(255,255,255,0.15);
       --text: #f0f0f0;
-      --muted: #888;
+      --muted: #777;
       --accent: #7c6ef5;
-      --accent-dim: rgba(124,110,245,0.15);
-      --accent-glow: rgba(124,110,245,0.4);
+      --accent2: #e879f9;
       --radius: 20px;
       --radius-sm: 12px;
     }
     html, body {
-      height: 100%; background: #000; color: var(--text);
+      min-height: 100%; background: var(--bg); color: var(--text);
       font-family: 'DM Sans', sans-serif;
       -webkit-font-smoothing: antialiased;
-      overscroll-behavior: none; overflow: hidden;
     }
-    #app { width: 100%; height: 100dvh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-    #camera-layer { position: absolute; inset: 0; z-index: 0; }
-    #video { width: 100%; height: 100%; object-fit: cover; }
-    #canvas { display: none; }
-    .cam-gradient-top {
-      position: absolute; top: 0; left: 0; right: 0; height: 160px;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-      z-index: 2; pointer-events: none;
+    #app {
+      max-width: 430px; margin: 0 auto;
+      min-height: 100dvh; display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 20px);
     }
-    .cam-gradient-bottom {
-      position: absolute; bottom: 0; left: 0; right: 0; height: 340px;
-      background: linear-gradient(to top, rgba(0,0,0,0.92), transparent);
-      z-index: 2; pointer-events: none;
+
+    /* Header */
+    .header {
+      padding: 20px 20px 16px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    .ui-layer {
-      position: absolute; inset: 0; z-index: 3;
-      display: flex; flex-direction: column;
-      padding: env(safe-area-inset-top, 20px) 0 env(safe-area-inset-bottom, 20px);
+    .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, #7c6ef5, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo-sub { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; -webkit-text-fill-color: var(--muted); }
+
+    /* Tabs */
+    .tabs {
+      display: flex; margin: 0 20px 20px;
+      background: var(--surface); border-radius: var(--radius-sm);
+      padding: 4px; gap: 4px;
     }
-    .header { padding: 16px 20px 0; display: flex; align-items: center; justify-content: space-between; }
-    .logo { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; color: #fff; display: flex; align-items: center; gap: 8px; }
-    .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent-glow); }
-    .clear-btn {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.12); border: none;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 16px; cursor: pointer;
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    .tab {
+      flex: 1; padding: 10px; border-radius: 9px; border: none;
+      background: transparent; color: var(--muted);
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
     }
-    .spacer { flex: 1; }
-    .bottom { padding: 0 20px 10px; display: flex; flex-direction: column; gap: 16px; }
-    .answer-card {
-      background: rgba(20,20,20,0.92);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: var(--radius);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      overflow: hidden; max-height: 38vh;
-      display: flex; flex-direction: column;
-      animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1);
+    .tab.active { background: var(--surface2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+
+    /* Content */
+    .content { padding: 0 20px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+
+    /* Input */
+    .input-wrap { position: relative; }
+    .url-input {
+      width: 100%; padding: 16px 52px 16px 16px;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px;
+      outline: none; transition: border-color 0.2s;
+      -webkit-appearance: none;
     }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .answer-header {
-      padding: 11px 14px; display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
+    .url-input::placeholder { color: var(--muted); }
+    .url-input:focus { border-color: var(--accent); }
+    .clear-input {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface2); border: none; color: var(--muted);
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; display: none;
     }
-    .answer-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 6px var(--accent-glow); flex-shrink: 0; }
-    .answer-label { font-size: 12px; font-weight: 500; color: var(--muted); flex: 1; }
-    .answer-close {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: rgba(255,255,255,0.08); border: none;
-      color: var(--muted); font-size: 12px;
-      display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .answer-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; }
-    .answer-body { padding: 14px; font-size: 14px; line-height: 1.75; color: #e8e8e8; white-space: pre-wrap; word-break: break-word; }
-    .suggestions { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; scrollbar-width: none; }
-    .suggestions::-webkit-scrollbar { display: none; }
-    .chip {
-      padding: 8px 14px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 20px; font-size: 13px;
-      color: rgba(255,255,255,0.75); cursor: pointer;
-      white-space: nowrap;
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+
+    /* Color picker row */
+    .color-section { display: flex; flex-direction: column; gap: 10px; }
+    .color-label { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .color-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .color-swatch {
+      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+      border: 3px solid transparent; transition: border-color 0.15s, transform 0.1s;
       -webkit-tap-highlight-color: transparent; flex-shrink: 0;
     }
-    .chip:active { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
-    .snap-row { display: flex; align-items: center; justify-content: center; gap: 24px; padding: 4px 0; }
-    .side-btn {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: rgba(255,255,255,0.1); border: none;
-      color: #fff; font-size: 20px;
+    .color-swatch.active { border-color: #fff; transform: scale(1.15); }
+    .color-custom {
+      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+      border: 2px dashed var(--border2); background: var(--surface2);
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-size: 16px; flex-shrink: 0;
       -webkit-tap-highlight-color: transparent;
     }
-    .snap-btn {
-      width: 76px; height: 76px; border-radius: 50%;
-      background: #fff; border: 4px solid rgba(255,255,255,0.4);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; position: relative;
+    #custom-color { display: none; }
+
+    /* Generate button */
+    .gen-btn {
+      width: 100%; padding: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: var(--radius);
+      color: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 16px; font-weight: 600; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: transform 0.1s;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: -0.2px;
     }
-    .snap-btn:active { transform: scale(0.93); }
-    .snap-btn.loading { background: var(--accent); border-color: var(--accent-dim); }
-    .snap-inner { width: 58px; height: 58px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; }
-    .snap-btn.loading .snap-inner { background: transparent; }
-    .spinner { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .no-cam {
+    .gen-btn:active { opacity: 0.85; transform: scale(0.98); }
+    .gen-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* QR result */
+    .qr-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 20px;
+      animation: popIn 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes popIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+
+    #qr-output {
+      background: #fff; border-radius: 16px;
+      padding: 16px; display: flex; align-items: center; justify-content: center;
+    }
+    #qr-output canvas, #qr-output img { display: block; border-radius: 8px; }
+
+    .qr-url {
+      font-size: 13px; color: var(--muted); text-align: center;
+      word-break: break-all; line-height: 1.5; max-width: 100%;
+    }
+
+    .action-row { display: flex; gap: 10px; width: 100%; }
+    .action-btn {
+      flex: 1; padding: 13px;
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+      -webkit-tap-highlight-color: transparent; transition: background 0.15s;
+    }
+    .action-btn:active { background: #2a2a2a; }
+    .action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .action-btn.primary:active { background: #6a5ee0; }
+
+    /* Scanner tab */
+    .scanner-wrap {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); overflow: hidden; position: relative;
+      aspect-ratio: 1;
+    }
+    #scan-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .scan-overlay {
       position: absolute; inset: 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; background: var(--bg); z-index: 1; text-align: center; padding: 40px;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
     }
-    .no-cam-icon { font-size: 48px; }
-    .no-cam h2 { font-size: 18px; font-weight: 500; }
-    .no-cam p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-    .allow-btn { margin-top: 8px; padding: 13px 28px; background: var(--accent); border: none; border-radius: 30px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; }
-    .error-card { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #f87171; line-height: 1.6; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-    .flash { position: absolute; inset: 0; background: #fff; z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.08s; }
-    .flash.active { opacity: 0.7; }
-    #gallery-input { display: none; }
+    .scan-frame {
+      width: 60%; aspect-ratio: 1;
+      border: 2px solid rgba(124,110,245,0.8);
+      border-radius: 16px;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.4);
+    }
+    .scan-line {
+      position: absolute;
+      width: 60%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scanLine 2s ease-in-out infinite;
+    }
+    @keyframes scanLine {
+      0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; }
+    }
+    .scan-result {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .scan-result-label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .scan-result-url { font-size: 15px; color: var(--text); word-break: break-all; line-height: 1.5; }
+
+    .start-scan-btn {
+      width: 100%; padding: 16px;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--radius); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .start-scan-btn:active { background: var(--surface2); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+      left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 30px; padding: 11px 20px;
+      font-size: 13px; color: var(--text);
+      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+      z-index: 100; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 <div id="app">
-  <div id="camera-layer">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas"></canvas>
-  </div>
-  <div class="flash" id="flash"></div>
-  <div class="cam-gradient-top"></div>
-  <div class="cam-gradient-bottom"></div>
-  <div class="no-cam" id="no-cam" style="display:none">
-    <div class="no-cam-icon">📷</div>
-    <h2>Camera access needed</h2>
-    <p>SnapAsk needs your camera to work. Tap below and allow access when Safari asks.</p>
-    <button class="allow-btn" onclick="startCamera()">Allow Camera</button>
-  </div>
-  <div class="ui-layer">
-    <div class="header">
-      <div class="logo"><div class="logo-dot"></div>SnapAsk</div>
-      <button class="clear-btn" onclick="clearAnswer()">✕</button>
+  <div class="header">
+    <div>
+      <div class="logo">QRDrop ✦</div>
+      <div class="logo-sub">Generate & scan QR codes</div>
     </div>
-    <div class="spacer"></div>
-    <div class="bottom">
-      <div id="answer-area"></div>
-      <div class="suggestions" id="suggestions" style="display:none">
-        <div class="chip" onclick="followUp('Explain this step by step in simple terms')">Step by step</div>
-        <div class="chip" onclick="followUp('Give me a shorter simpler answer')">Simplify</div>
-        <div class="chip" onclick="followUp('Give me a similar example problem')">Example</div>
-        <div class="chip" onclick="followUp('Why is this the answer?')">Why?</div>
-        <div class="chip" onclick="followUp('Summarize this in one sentence')">Summarize</div>
-      </div>
-      <div class="snap-row">
-        <button class="side-btn" onclick="triggerGallery()">🖼️</button>
-        <div class="snap-btn" id="snap-btn" onclick="snap()">
-          <div class="snap-inner" id="snap-inner">✦</div>
-        </div>
-        <button class="side-btn" onclick="flipCamera()">🔄</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('generate')">⚡ Generate</button>
+    <button class="tab" onclick="switchTab('scan')">📷 Scan</button>
+  </div>
+
+  <!-- GENERATE TAB -->
+  <div class="content" id="tab-generate">
+    <div class="input-wrap">
+      <input class="url-input" id="url-input" type="url" placeholder="Paste any link here..." oninput="onInput(this)" />
+      <button class="clear-input" id="clear-btn" onclick="clearInput()">✕</button>
+    </div>
+
+    <div class="color-section">
+      <div class="color-label">QR Color</div>
+      <div class="color-row" id="color-row">
+        <div class="color-swatch active" style="background:#000000" data-color="#000000" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#7c6ef5" data-color="#7c6ef5" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#e879f9" data-color="#e879f9" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#f97316" data-color="#f97316" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#22c55e" data-color="#22c55e" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#ef4444" data-color="#ef4444" onclick="pickColor(this)"></div>
+        <div class="color-swatch" style="background:#0ea5e9" data-color="#0ea5e9" onclick="pickColor(this)"></div>
+        <div class="color-custom" onclick="document.getElementById('custom-color').click()">🎨</div>
+        <input type="color" id="custom-color" onchange="setCustomColor(this.value)" />
       </div>
     </div>
+
+    <button class="gen-btn" id="gen-btn" onclick="generate()" disabled>Generate QR Code</button>
+
+    <div id="qr-card-wrap"></div>
+  </div>
+
+  <!-- SCAN TAB -->
+  <div class="content hidden" id="tab-scan">
+    <div class="scanner-wrap hidden" id="scanner-wrap">
+      <video id="scan-video" autoplay playsinline muted></video>
+      <div class="scan-overlay">
+        <div class="scan-frame"></div>
+        <div class="scan-line"></div>
+      </div>
+    </div>
+    <button class="start-scan-btn" id="start-scan-btn" onclick="startScan()">📷 &nbsp;Start Camera Scanner</button>
+    <div id="scan-result-wrap"></div>
   </div>
 </div>
-<input type="file" id="gallery-input" accept="image/*" onchange="handleGallery(this)" />
+
+<div class="toast" id="toast"></div>
+
 <script>
-  const GEMINI_KEY = 'AIzaSyBsYHMPkQKjBABD9ZxarSlpuA0MCJ6liFw';
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-  let stream = null, facingMode = 'environment', lastImageB64 = null, lastMime = 'image/jpeg', isLoading = false;
+  let qrColor = '#000000';
+  let scanStream = null;
+  let scanInterval = null;
+  let activeTab = 'generate';
 
-  async function startCamera() {
-    document.getElementById('no-cam').style.display = 'none';
+  // ── Tab switching ──
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='generate')||(i===1&&tab==='scan')));
+    document.getElementById('tab-generate').classList.toggle('hidden', tab !== 'generate');
+    document.getElementById('tab-scan').classList.toggle('hidden', tab !== 'scan');
+    if (tab !== 'scan') stopScan();
+  }
+
+  // ── Input ──
+  function onInput(el) {
+    document.getElementById('clear-btn').style.display = el.value ? 'flex' : 'none';
+    document.getElementById('gen-btn').disabled = !el.value.trim();
+  }
+  function clearInput() {
+    const el = document.getElementById('url-input');
+    el.value = ''; onInput(el);
+    document.getElementById('qr-card-wrap').innerHTML = '';
+  }
+
+  // ── Color ──
+  function pickColor(el) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    qrColor = el.dataset.color;
+  }
+  function setCustomColor(val) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    qrColor = val;
+  }
+
+  // ── Generate ──
+  function generate() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) return;
+
+    const wrap = document.getElementById('qr-card-wrap');
+    wrap.innerHTML = `
+      <div class="qr-card">
+        <div id="qr-output"></div>
+        <div class="qr-url">${escapeHtml(url)}</div>
+        <div class="action-row">
+          <button class="action-btn" onclick="copyLink()">🔗 Copy Link</button>
+          <button class="action-btn primary" onclick="saveQR()">⬇ Save QR</button>
+        </div>
+      </div>
+    `;
+
+    new QRCode(document.getElementById('qr-output'), {
+      text: url, width: 220, height: 220,
+      colorDark: qrColor, colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
+
+  function copyLink() {
+    const url = document.getElementById('url-input').value.trim();
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied ✓')).catch(() => showToast('Copy failed'));
+  }
+
+  function saveQR() {
+    const canvas = document.querySelector('#qr-output canvas');
+    if (!canvas) return showToast('Generate a QR first');
+    const link = document.createElement('a');
+    link.download = 'qrdrop.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Saved to downloads ✓');
+  }
+
+  // ── Scanner ──
+  async function startScan() {
     try {
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-      document.getElementById('video').srcObject = stream;
-    } catch(e) { document.getElementById('no-cam').style.display = 'flex'; }
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      document.getElementById('scan-video').srcObject = scanStream;
+      document.getElementById('scanner-wrap').classList.remove('hidden');
+      document.getElementById('start-scan-btn').classList.add('hidden');
+      startDecoding();
+    } catch(e) { showToast('Camera access denied'); }
   }
 
-  async function flipCamera() { facingMode = facingMode === 'environment' ? 'user' : 'environment'; await startCamera(); }
-  function triggerGallery() { document.getElementById('gallery-input').click(); }
-
-  function handleGallery(input) {
-    const file = input.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => { const b64 = e.target.result.split(',')[1]; askGemini(b64, file.type || 'image/jpeg'); };
-    reader.readAsDataURL(file); input.value = '';
+  function stopScan() {
+    if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    document.getElementById('scanner-wrap').classList.add('hidden');
+    document.getElementById('start-scan-btn').classList.remove('hidden');
   }
 
-  function snap() {
-    if (isLoading) return;
-    const video = document.getElementById('video'), canvas = document.getElementById('canvas');
-    if (!stream || !video.videoWidth) return;
-    const flash = document.getElementById('flash');
-    flash.classList.add('active'); setTimeout(() => flash.classList.remove('active'), 150);
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  function startDecoding() {
+    const video = document.getElementById('scan-video');
+    const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (facingMode === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(video, 0, 0);
-    const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-    askGemini(b64, 'image/jpeg');
+    scanInterval = setInterval(() => {
+      if (!video.videoWidth) return;
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      try {
+        // Use BarcodeDetector if available (Chrome/Android)
+        if ('BarcodeDetector' in window) {
+          const detector = new BarcodeDetector({ formats: ['qr_code'] });
+          detector.detect(canvas).then(codes => {
+            if (codes.length > 0) onScanned(codes[0].rawValue);
+          });
+        }
+      } catch(e) {}
+    }, 300);
   }
 
-  async function askGemini(b64, mimeType, extraText) {
-    if (isLoading) return;
-    isLoading = true; lastImageB64 = b64; lastMime = mimeType;
-    setLoading(true);
-    const prompt = extraText || 'Look at this image and answer or explain what is being asked or shown. If it is a math problem, solve it step by step. If it is text, summarize or answer it. If it is a question, answer it clearly. Be concise and direct.';
-    try {
-      const res = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: b64 } }, { text: prompt }] }], generationConfig: { maxOutputTokens: 800, temperature: 0.3 } })
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer found.';
-      showAnswer(text);
-    } catch(e) { showError(e.message); }
-    setLoading(false); isLoading = false;
+  function onScanned(result) {
+    stopScan();
+    const isUrl = result.startsWith('http://') || result.startsWith('https://');
+    document.getElementById('scan-result-wrap').innerHTML = `
+      <div class="scan-result">
+        <div class="scan-result-label">Scanned Result</div>
+        <div class="scan-result-url">${escapeHtml(result)}</div>
+        <div class="action-row">
+          <button class="action-btn" onclick="navigator.clipboard.writeText('${escapeHtml(result)}').then(()=>showToast('Copied ✓'))">🔗 Copy</button>
+          ${isUrl ? `<button class="action-btn primary" onclick="window.open('${escapeHtml(result)}','_blank')">🌐 Open</button>` : ''}
+          <button class="action-btn" onclick="makeQRFromScan('${escapeHtml(result)}')">⚡ Make QR</button>
+        </div>
+      </div>
+    `;
   }
 
-  function followUp(prompt) { if (lastImageB64) askGemini(lastImageB64, lastMime, prompt); }
-
-  function setLoading(on) {
-    const btn = document.getElementById('snap-btn'), inner = document.getElementById('snap-inner');
-    if (on) { btn.classList.add('loading'); inner.innerHTML = '<div class="spinner"></div>'; document.getElementById('answer-area').innerHTML = ''; document.getElementById('suggestions').style.display = 'none'; }
-    else { btn.classList.remove('loading'); inner.innerHTML = '✦'; }
+  function makeQRFromScan(url) {
+    switchTab('generate');
+    const input = document.getElementById('url-input');
+    input.value = url; onInput(input);
+    generate();
   }
 
-  function showAnswer(text) {
-    document.getElementById('answer-area').innerHTML = `<div class="answer-card"><div class="answer-header"><div class="answer-dot"></div><span class="answer-label">AI Answer</span><button class="answer-close" onclick="clearAnswer()">✕</button></div><div class="answer-scroll"><div class="answer-body">${escapeHtml(text)}</div></div></div>`;
-    document.getElementById('suggestions').style.display = 'flex';
+  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
   }
-
-  function showError(msg) { document.getElementById('answer-area').innerHTML = `<div class="error-card">⚠️ ${escapeHtml(msg)}</div>`; }
-  function clearAnswer() { document.getElementById('answer-area').innerHTML = ''; document.getElementById('suggestions').style.display = 'none'; lastImageB64 = null; }
-  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  startCamera();
 </script>
 </body>
 </html>
