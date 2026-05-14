@@ -1,418 +1,685 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="QRDrop" />
-  <meta name="theme-color" content="#0a0a0a" />
-  <title>QRDrop</title>
-  <link rel="manifest" href="manifest.json" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --surface2: #1e1e1e;
-      --border: rgba(255,255,255,0.08);
-      --border2: rgba(255,255,255,0.15);
-      --text: #f0f0f0;
-      --muted: #777;
-      --accent: #7c6ef5;
-      --accent2: #e879f9;
-      --radius: 20px;
-      --radius-sm: 12px;
-    }
-    html, body {
-      min-height: 100%; background: var(--bg); color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    #app {
-      max-width: 430px; margin: 0 auto;
-      min-height: 100dvh; display: flex; flex-direction: column;
-      padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 20px);
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="GameRoom" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>GameRoom</title>
+<link rel="manifest" href="manifest.json" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update, push, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    /* Header */
-    .header {
-      padding: 20px 20px 16px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; background: linear-gradient(135deg, #7c6ef5, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .logo-sub { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 1px; -webkit-text-fill-color: var(--muted); }
+const firebaseConfig = {
+apiKey: "AIzaSyCn3HWDEoytYZ5WdljIvXzYn4_Sg9T0dVE",
+authDomain: "unblockedforever-7413f.firebaseapp.com",
+databaseURL: "https://unblockedforever-7413f-default-rtdb.firebaseio.com",
+projectId: "unblockedforever-7413f",
+storageBucket: "unblockedforever-7413f.firebasestorage.app",
+messagingSenderId: "974408660145",
+appId: "1:974408660145:web:29fef6646a6261123c5e90"
+};
 
-    /* Tabs */
-    .tabs {
-      display: flex; margin: 0 20px 20px;
-      background: var(--surface); border-radius: var(--radius-sm);
-      padding: 4px; gap: 4px;
-    }
-    .tab {
-      flex: 1; padding: 10px; border-radius: 9px; border: none;
-      background: transparent; color: var(--muted);
-      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
-      cursor: pointer; transition: all 0.2s;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .tab.active { background: var(--surface2); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-    /* Content */
-    .content { padding: 0 20px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+// ── State ──
+let myName = '';
+let myId = 'u_' + Math.random().toString(36).slice(2,8);
+let roomCode = '';
+let isHost = false;
+let currentGame = '';
+let unsubscribes = [];
 
-    /* Input */
-    .input-wrap { position: relative; }
-    .url-input {
-      width: 100%; padding: 16px 52px 16px 16px;
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 15px;
-      outline: none; transition: border-color 0.2s;
-      -webkit-appearance: none;
-    }
-    .url-input::placeholder { color: var(--muted); }
-    .url-input:focus { border-color: var(--accent); }
-    .clear-input {
-      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--surface2); border: none; color: var(--muted);
-      font-size: 14px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; display: none;
-    }
+// ── Screens ──
+function show(id) {
+document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+document.getElementById(id).classList.remove('hidden');
+}
 
-    /* Color picker row */
-    .color-section { display: flex; flex-direction: column; gap: 10px; }
-    .color-label { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .color-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .color-swatch {
-      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
-      border: 3px solid transparent; transition: border-color 0.15s, transform 0.1s;
-      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
-    }
-    .color-swatch.active { border-color: #fff; transform: scale(1.15); }
-    .color-custom {
-      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
-      border: 2px dashed var(--border2); background: var(--surface2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #custom-color { display: none; }
+// ── Home ──
+window.goCreate = function() { show('screen-name'); window._nameAction = 'create'; }
+window.goJoin = function() { show('screen-name'); window._nameAction = 'join'; }
+window.goBack = function() { cleanup(); show('screen-home'); }
 
-    /* Generate button */
-    .gen-btn {
-      width: 100%; padding: 16px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border: none; border-radius: var(--radius);
-      color: #fff; font-family: 'DM Sans', sans-serif;
-      font-size: 16px; font-weight: 600; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: opacity 0.15s, transform 0.1s;
-      letter-spacing: -0.2px;
-    }
-    .gen-btn:active { opacity: 0.85; transform: scale(0.98); }
-    .gen-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+window.submitName = function() {
+const n = document.getElementById('name-input').value.trim();
+if (!n) return shake('name-input');
+myName = n;
+if (window._nameAction === 'create') showCreateRoom();
+else show('screen-join');
+}
 
-    /* QR result */
-    .qr-card {
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); padding: 24px;
-      display: flex; flex-direction: column; align-items: center; gap: 20px;
-      animation: popIn 0.4s cubic-bezier(0.16,1,0.3,1);
-    }
-    @keyframes popIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+// ── Create room ──
+function showCreateRoom() { show('screen-create'); }
 
-    #qr-output {
-      background: #fff; border-radius: 16px;
-      padding: 16px; display: flex; align-items: center; justify-content: center;
-    }
-    #qr-output canvas, #qr-output img { display: block; border-radius: 8px; }
+window.selectGame = function(el, game) {
+document.querySelectorAll('.game-card').forEach(c => c.classList.remove('active'));
+el.classList.add('active');
+currentGame = game;
+document.getElementById('start-room-btn').disabled = false;
+}
 
-    .qr-url {
-      font-size: 13px; color: var(--muted); text-align: center;
-      word-break: break-all; line-height: 1.5; max-width: 100%;
-    }
+window.createRoom = async function() {
+if (!currentGame) return;
+roomCode = Math.random().toString(36).slice(2,6).toUpperCase();
+isHost = true;
+await set(ref(db, `rooms/${roomCode}`), {
+host: myId, game: currentGame, status: 'lobby',
+players: { [myId]: { name: myName, id: myId, host: true } }
+});
+enterLobby();
+}
 
-    .action-row { display: flex; gap: 10px; width: 100%; }
-    .action-btn {
-      flex: 1; padding: 13px;
-      background: var(--surface2); border: 1px solid var(--border2);
-      border-radius: var(--radius-sm); color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-      -webkit-tap-highlight-color: transparent; transition: background 0.15s;
-    }
-    .action-btn:active { background: #2a2a2a; }
-    .action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .action-btn.primary:active { background: #6a5ee0; }
+// ── Join room ──
+window.joinRoom = async function() {
+const code = document.getElementById('join-input').value.trim().toUpperCase();
+if (!code) return shake('join-input');
+const snap = await get(ref(db, `rooms/${code}`));
+if (!snap.exists()) return showToast('Room not found!');
+const room = snap.val();
+if (room.status !== 'lobby') return showToast('Game already started!');
+roomCode = code;
+currentGame = room.game;
+isHost = false;
+await update(ref(db, `rooms/${roomCode}/players/${myId}`), { name: myName, id: myId, host: false });
+enterLobby();
+}
 
-    /* Scanner tab */
-    .scanner-wrap {
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); overflow: hidden; position: relative;
-      aspect-ratio: 1;
-    }
-    #scan-video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .scan-overlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-    }
-    .scan-frame {
-      width: 60%; aspect-ratio: 1;
-      border: 2px solid rgba(124,110,245,0.8);
-      border-radius: 16px;
-      box-shadow: 0 0 0 2000px rgba(0,0,0,0.4);
-    }
-    .scan-line {
-      position: absolute;
-      width: 60%; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      animation: scanLine 2s ease-in-out infinite;
-    }
-    @keyframes scanLine {
-      0% { top: 20%; } 50% { top: 80%; } 100% { top: 20%; }
-    }
-    .scan-result {
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); padding: 16px;
-      display: flex; flex-direction: column; gap: 12px;
-      animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .scan-result-label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .scan-result-url { font-size: 15px; color: var(--text); word-break: break-all; line-height: 1.5; }
+// ── Lobby ──
+function enterLobby() {
+show('screen-lobby');
+document.getElementById('lobby-code').textContent = roomCode;
+document.getElementById('lobby-game').textContent = gameLabel(currentGame);
+document.getElementById('lobby-start-btn').style.display = isHost ? 'block' : 'none';
+document.getElementById('lobby-waiting').style.display = isHost ? 'none' : 'block';
 
-    .start-scan-btn {
-      width: 100%; padding: 16px;
-      background: var(--surface); border: 1px solid var(--border2);
-      border-radius: var(--radius); color: var(--text);
-      font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .start-scan-btn:active { background: var(--surface2); }
+const unsub = onValue(ref(db, `rooms/${roomCode}`), snap => {
+if (!snap.exists()) return;
+const room = snap.val();
+const players = room.players || {};
+const list = document.getElementById('players-list');
+list.innerHTML = Object.values(players).map(p =>
+`<div class="player-chip">${p.host ? '👑' : '🎮'} ${escHtml(p.name)}</div>`
+).join('');
+document.getElementById('player-count').textContent = Object.keys(players).length;
+if (room.status === 'playing') {
+startGame(room);
+}
+});
+unsubscribes.push(unsub);
+}
 
-    /* Toast */
-    .toast {
-      position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
-      left: 50%; transform: translateX(-50%) translateY(80px);
-      background: var(--surface2); border: 1px solid var(--border2);
-      border-radius: 30px; padding: 11px 20px;
-      font-size: 13px; color: var(--text);
-      transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
-      z-index: 100; white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
-    .toast.show { transform: translateX(-50%) translateY(0); }
+window.startGame = async function(roomData) {
+if (isHost && !roomData) {
+const snap = await get(ref(db, `rooms/${roomCode}`));
+roomData = snap.val();
+const playerIds = Object.keys(roomData.players);
+if (playerIds.length < 2) return showToast('Need at least 2 players!');
+const gameState = buildInitialState(currentGame, roomData.players);
+await update(ref(db, `rooms/${roomCode}`), { status: 'playing', gameState });
+return;
+}
+cleanup();
+if (currentGame === 'hotpotato') launchHotPotato(roomData);
+else if (currentGame === 'closestguess') launchClosestGuess(roomData);
+else if (currentGame === 'murder') launchMurder(roomData);
+}
 
-    .hidden { display: none !important; }
-  </style>
+function buildInitialState(game, players) {
+const ids = Object.keys(players);
+if (game === 'hotpotato') {
+return { holder: ids[0], explodeAt: Date.now() + (15000 + Math.random()*15000), passed: false, exploded: false };
+}
+if (game === 'closestguess') {
+const target = Math.floor(Math.random()*1000)+1;
+return { target, round: 1, maxRounds: 5, guesses: {}, revealed: false, scores: Object.fromEntries(ids.map(id=>[id,0])) };
+}
+if (game === 'murder') {
+const shuffled = [...ids].sort(()=>Math.random()-0.5);
+const roles = {};
+shuffled.forEach((id,i) => {
+if (i===0) roles[id] = 'murderer';
+else if (i===1) roles[id] = 'detective';
+else roles[id] = 'civilian';
+});
+return { roles, phase: 'role_reveal', votes: {}, eliminated: [], round: 1, log: ['Game started! Check your role.'] };
+}
+}
+
+// ══════════════════════════════════════
+// HOT POTATO
+// ══════════════════════════════════════
+function launchHotPotato(roomData) {
+show('screen-game');
+document.getElementById('game-title').textContent = '🥔 Hot Potato';
+const area = document.getElementById('game-area');
+
+const unsub = onValue(ref(db, `rooms/${roomCode}/gameState`), snap => {
+if (!snap.exists()) return;
+const gs = snap.val();
+const players = roomData.players;
+const holderName = players[gs.holder]?.name || '?';
+const iHolder = gs.holder === myId;
+const timeLeft = Math.max(0, Math.ceil((gs.explodeAt - Date.now())/1000));
+
+if (gs.exploded) {
+area.innerHTML = `
+<div class="game-center">
+<div style="font-size:80px">💥</div>
+<div class="game-big">${escHtml(holderName)} exploded!</div>
+<div class="game-sub">${iHolder ? "You got blown up 😭" : "They held it too long 💀"}</div>
+<button class="btn-primary" style="margin-top:24px" onclick="playAgain()">Play Again</button>
+</div>`;
+return;
+}
+
+if (iHolder) {
+const others = Object.values(players).filter(p => p.id !== myId);
+area.innerHTML = `
+<div class="game-center">
+<div class="potato-bomb" id="potato-anim">🥔</div>
+<div class="game-big" style="color:#f97316">YOU HAVE IT!</div>
+<div class="timer-ring">${timeLeft}s</div>
+<div class="game-sub">Pass it before it blows!</div>
+<div class="pass-list">
+${others.map(p => `<button class="pass-btn" onclick="passPotato('${p.id}')">${escHtml(p.name)}</button>`).join('')}
+</div>
+</div>`;
+// shake animation
+const el = document.getElementById('potato-anim');
+if (el) el.style.animation = timeLeft < 5 ? 'shake 0.3s infinite' : 'bounce 1s infinite';
+} else {
+area.innerHTML = `
+<div class="game-center">
+<div style="font-size:70px">😅</div>
+<div class="game-big">${escHtml(holderName)} has it</div>
+<div class="timer-ring" style="background:rgba(255,255,255,0.05)">${timeLeft}s</div>
+<div class="game-sub">Hope they pass it in time...</div>
+</div>`;
+}
+
+// check explode
+if (!gs.exploded && Date.now() >= gs.explodeAt && isHost) {
+update(ref(db, `rooms/${roomCode}/gameState`), { exploded: true });
+}
+});
+unsubscribes.push(unsub);
+
+// tick timer
+const tick = setInterval(() => {
+const el = document.querySelector('.timer-ring');
+if (!el) { clearInterval(tick); return; }
+const snap2 = get(ref(db, `rooms/${roomCode}/gameState`)).then(s => {
+if (!s.exists()) return;
+const gs = s.val();
+const t = Math.max(0, Math.ceil((gs.explodeAt - Date.now())/1000));
+if (el) el.textContent = t + 's';
+if (!gs.exploded && Date.now() >= gs.explodeAt && isHost) {
+update(ref(db, `rooms/${roomCode}/gameState`), { exploded: true });
+clearInterval(tick);
+}
+});
+}, 500);
+}
+
+window.passPotato = async function(toId) {
+await update(ref(db, `rooms/${roomCode}/gameState`), { holder: toId });
+showToast('Passed! 🔥');
+}
+
+// ══════════════════════════════════════
+// CLOSEST GUESS
+// ══════════════════════════════════════
+function launchClosestGuess(roomData) {
+show('screen-game');
+document.getElementById('game-title').textContent = '🎯 Closest Guess';
+const area = document.getElementById('game-area');
+const players = roomData.players;
+
+const unsub = onValue(ref(db, `rooms/${roomCode}/gameState`), snap => {
+if (!snap.exists()) return;
+const gs = snap.val();
+const myGuess = gs.guesses?.[myId];
+const allGuessed = Object.keys(players).every(id => gs.guesses?.[id] !== undefined);
+
+if (gs.revealed || allGuessed) {
+// show results
+const sorted = Object.entries(gs.guesses || {}).map(([id, g]) => ({
+name: players[id]?.name || id,
+guess: g,
+diff: Math.abs(g - gs.target),
+id,
+isMe: id === myId
+})).sort((a,b) => a.diff - b.diff);
+
+const winner = sorted[0];
+area.innerHTML = `
+<div class="guess-results">
+<div class="game-sub" style="margin-bottom:4px">Round ${gs.round} of ${gs.maxRounds}</div>
+<div class="target-reveal">🎯 Answer: <strong>${gs.target}</strong></div>
+<div class="results-list">
+${sorted.map((p,i) => `
+<div class="result-row ${p.isMe?'me':''}">
+<span>${i===0?'🥇':i===1?'🥈':'🥉'} ${escHtml(p.name)}</span>
+<span>guessed <strong>${p.guess}</strong> (off by ${p.diff})</span>
+</div>`).join('')}
+</div>
+<div class="scores-section">
+<div class="score-label">Scores</div>
+${Object.entries(gs.scores||{}).sort((a,b)=>b[1]-a[1]).map(([id,s])=>`
+<div class="score-row ${id===myId?'me':''}">
+<span>${escHtml(players[id]?.name||id)}</span><span>${s} pts</span>
+</div>`).join('')}
+</div>
+${isHost ? (gs.round < gs.maxRounds ?
+`<button class="btn-primary" onclick="nextGuessRound()">Next Round →</button>` :
+`<button class="btn-primary" onclick="playAgain()">Game Over — Play Again</button>`) :
+`<div class="game-sub">Waiting for host...</div>`}
+</div>`;
+
+if (isHost && !gs.revealed) {
+// award point to winner
+const newScores = {...(gs.scores||{})};
+newScores[winner.id] = (newScores[winner.id]||0) + 1;
+update(ref(db, `rooms/${roomCode}/gameState`), { revealed: true, scores: newScores });
+}
+} else if (myGuess !== undefined) {
+area.innerHTML = `
+<div class="game-center">
+<div style="font-size:60px">⏳</div>
+<div class="game-big">You guessed ${myGuess}</div>
+<div class="game-sub">Waiting for others...</div>
+<div class="waiting-dots"><span>.</span><span>.</span><span>.</span></div>
+</div>`;
+} else {
+area.innerHTML = `
+<div class="game-center">
+<div class="game-sub">Round ${gs.round} of ${gs.maxRounds}</div>
+<div class="game-big" style="margin:16px 0">1 – 1000</div>
+<div class="game-sub" style="margin-bottom:20px">Guess the number!</div>
+<div class="guess-input-row">
+<input id="guess-input" type="number" min="1" max="1000" class="url-input" placeholder="Your guess..." style="font-size:20px;text-align:center" />
+</div>
+<button class="btn-primary" style="margin-top:16px;width:100%" onclick="submitGuess()">Lock In 🎯</button>
+</div>`;
+}
+});
+unsubscribes.push(unsub);
+}
+
+window.submitGuess = async function() {
+const val = parseInt(document.getElementById('guess-input')?.value);
+if (!val || val < 1 || val > 1000) return showToast('Enter a number 1-1000');
+await update(ref(db, `rooms/${roomCode}/gameState/guesses`), { [myId]: val });
+}
+
+window.nextGuessRound = async function() {
+const snap = await get(ref(db, `rooms/${roomCode}/gameState`));
+const gs = snap.val();
+const target = Math.floor(Math.random()*1000)+1;
+await update(ref(db, `rooms/${roomCode}/gameState`), {
+target, round: gs.round+1, guesses: {}, revealed: false
+});
+}
+
+// ══════════════════════════════════════
+// MURDER MYSTERY
+// ══════════════════════════════════════
+function launchMurder(roomData) {
+show('screen-game');
+document.getElementById('game-title').textContent = '🔪 Murder Mystery';
+const area = document.getElementById('game-area');
+const players = roomData.players;
+
+const unsub = onValue(ref(db, `rooms/${roomCode}/gameState`), snap => {
+if (!snap.exists()) return;
+const gs = snap.val();
+const myRole = gs.roles?.[myId];
+const eliminated = gs.eliminated || [];
+const amEliminated = eliminated.includes(myId);
+const activePlayers = Object.keys(players).filter(id => !eliminated.includes(id));
+const murdererEliminated = eliminated.includes(Object.entries(gs.roles||{}).find(([,r])=>r==='murderer')?.[0]);
+
+// Game over
+if (murdererEliminated) {
+area.innerHTML = `<div class="game-center"><div style="font-size:70px">🎉</div><div class="game-big">Town wins!</div><div class="game-sub">The murderer was caught!</div>${revealRoles(gs.roles, players)}<button class="btn-primary" style="margin-top:20px" onclick="playAgain()">Play Again</button></div>`;
+return;
+}
+if (activePlayers.length <= 2 && activePlayers.includes(Object.entries(gs.roles||{}).find(([,r])=>r==='murderer')?.[0])) {
+area.innerHTML = `<div class="game-center"><div style="font-size:70px">💀</div><div class="game-big">Murderer wins!</div><div class="game-sub">Everyone was eliminated...</div>${revealRoles(gs.roles, players)}<button class="btn-primary" style="margin-top:20px" onclick="playAgain()">Play Again</button></div>`;
+return;
+}
+
+if (gs.phase === 'role_reveal') {
+const roleEmoji = myRole === 'murderer' ? '🔪' : myRole === 'detective' ? '🔍' : '👤';
+const roleDesc = myRole === 'murderer' ? 'Stay hidden. Avoid suspicion. Win by surviving.' : myRole === 'detective' ? 'Find the murderer. Vote them out before it\'s too late.' : 'Vote wisely. Don\'t trust anyone.';
+area.innerHTML = `
+<div class="game-center">
+<div style="font-size:80px">${roleEmoji}</div>
+<div class="game-big">You are the<br><span style="color:var(--accent)">${myRole.toUpperCase()}</span></div>
+<div class="game-sub" style="margin:12px 0 24px">${roleDesc}</div>
+${isHost ? `<button class="btn-primary" onclick="startMurderRound()">Start Round 1</button>` : `<div class="game-sub">Waiting for host to start...</div>`}
+</div>`;
+return;
+}
+
+if (gs.phase === 'voting') {
+const myVote = gs.votes?.[myId];
+const voteCount = Object.keys(gs.votes||{}).length;
+const allVoted = activePlayers.every(id => gs.votes?.[id]);
+
+if (myVote) {
+area.innerHTML = `
+<div class="murder-wrap">
+<div class="round-badge">Round ${gs.round}</div>
+<div class="game-sub" style="margin:12px 0">You voted for <strong>${escHtml(players[myVote]?.name||myVote)}</strong></div>
+<div class="game-sub">${voteCount}/${activePlayers.length} voted</div>
+<div class="waiting-dots"><span>.</span><span>.</span><span>.</span></div>
+<div class="log-section">${(gs.log||[]).slice(-3).map(l=>`<div class="log-line">${escHtml(l)}</div>`).join('')}</div>
+${isHost && allVoted ? `<button class="btn-primary" style="margin-top:16px" onclick="resolveVote()">Reveal Vote</button>` : ''}
+</div>`;
+} else if (!amEliminated) {
+const targets = activePlayers.filter(id => id !== myId);
+area.innerHTML = `
+<div class="murder-wrap">
+<div class="round-badge">Round ${gs.round} — Vote!</div>
+<div class="game-sub" style="margin:8px 0 16px">Who do you think is the murderer?</div>
+<div class="vote-list">
+${targets.map(id => `<button class="vote-btn" onclick="castVote('${id}')">${escHtml(players[id]?.name||id)}</button>`).join('')}
+</div>
+<div class="log-section">${(gs.log||[]).slice(-3).map(l=>`<div class="log-line">${escHtml(l)}</div>`).join('')}</div>
+</div>`;
+} else {
+area.innerHTML = `<div class="game-center"><div style="font-size:60px">👻</div><div class="game-big">You were eliminated</div><div class="game-sub">Watch the chaos unfold...</div><div class="log-section" style="margin-top:20px">${(gs.log||[]).map(l=>`<div class="log-line">${escHtml(l)}</div>`).join('')}</div></div>`;
+}
+}
+});
+unsubscribes.push(unsub);
+}
+
+window.startMurderRound = async function() {
+const snap = await get(ref(db, `rooms/${roomCode}/gameState`));
+const gs = snap.val();
+await update(ref(db, `rooms/${roomCode}/gameState`), { phase: 'voting', votes: {} });
+}
+
+window.castVote = async function(targetId) {
+await update(ref(db, `rooms/${roomCode}/gameState/votes`), { [myId]: targetId });
+}
+
+window.resolveVote = async function() {
+const snap = await get(ref(db, `rooms/${roomCode}/gameState`));
+const gs = snap.val();
+const players_snap = await get(ref(db, `rooms/${roomCode}/players`));
+const players = players_snap.val();
+const votes = gs.votes || {};
+const tally = {};
+Object.values(votes).forEach(v => { tally[v] = (tally[v]||0)+1; });
+const maxVotes = Math.max(...Object.values(tally));
+const eliminated_id = Object.entries(tally).find(([,v])=>v===maxVotes)?.[0];
+const eliminatedRole = gs.roles[eliminated_id];
+const newEliminated = [...(gs.eliminated||[]), eliminated_id];
+const newLog = [...(gs.log||[]), `${players[eliminated_id]?.name} was eliminated! They were the ${eliminatedRole}.`];
+await update(ref(db, `rooms/${roomCode}/gameState`), {
+eliminated: newEliminated,
+votes: {},
+round: gs.round + 1,
+log: newLog,
+phase: 'voting'
+});
+}
+
+function revealRoles(roles, players) {
+return `<div class="roles-reveal">${Object.entries(roles).map(([id,r])=>`<div class="role-row"><span>${escHtml(players[id]?.name||id)}</span><span class="role-badge ${r}">${r}</span></div>`).join('')}</div>`;
+}
+
+// ── Play again ──
+window.playAgain = async function() {
+cleanup();
+if (isHost) {
+const snap = await get(ref(db, `rooms/${roomCode}/players`));
+const players = snap.val();
+const gameState = buildInitialState(currentGame, players);
+await update(ref(db, `rooms/${roomCode}`), { status: 'lobby', gameState: null });
+enterLobby();
+} else {
+enterLobby();
+}
+}
+
+// ── Utils ──
+function cleanup() { unsubscribes.forEach(u => u && u()); unsubscribes = []; }
+function gameLabel(g) { return g==='hotpotato'?'🥔 Hot Potato':g==='closestguess'?'🎯 Closest Guess':'🔪 Murder Mystery'; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function shake(id) { const el=document.getElementById(id); el.style.animation='shake 0.4s'; setTimeout(()=>el.style.animation='',400); }
+
+window.showToast = function(msg) {
+const t = document.getElementById('toast');
+t.textContent = msg; t.classList.add('show');
+setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+window.copyCode = function() {
+navigator.clipboard.writeText(roomCode).then(()=>showToast('Code copied!'));
+}
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+--bg: #0a0a0a; --surface: #141414; --surface2: #1e1e1e;
+--border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+--text: #f0f0f0; --muted: #777; --accent: #7c6ef5;
+--accent2: #e879f9; --danger: #ef4444; --success: #22c55e;
+--radius: 20px; --radius-sm: 12px;
+}
+html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+#app { max-width: 430px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; padding: env(safe-area-inset-top,16px) 0 env(safe-area-inset-bottom,20px); }
+.hidden { display: none !important; }
+.screen { padding: 0 20px; flex: 1; display: flex; flex-direction: column; }
+
+/* Header */
+.header { padding: 20px 20px 0; }
+.logo { font-size: 28px; font-weight: 700; letter-spacing: -1px; background: linear-gradient(135deg, #7c6ef5, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.logo-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* Buttons */
+.btn-primary { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: var(--radius); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity 0.15s, transform 0.1s; }
+.btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.3; }
+.btn-outline { width: 100%; padding: 15px; background: transparent; border: 1.5px solid var(--border2); border-radius: var(--radius); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.btn-outline:active { background: var(--surface); }
+
+/* Inputs */
+.url-input { width: 100%; padding: 16px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; outline: none; -webkit-appearance: none; }
+.url-input::placeholder { color: var(--muted); }
+.url-input:focus { border-color: var(--accent); }
+
+/* Home */
+#screen-home { justify-content: center; gap: 16px; padding-top: 0; }
+.home-hero { text-align: center; padding: 40px 0 32px; }
+.home-icon { font-size: 72px; margin-bottom: 16px; }
+.home-title { font-size: 32px; font-weight: 700; letter-spacing: -1px; background: linear-gradient(135deg, #7c6ef5, #e879f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.home-sub { font-size: 15px; color: var(--muted); margin-top: 8px; }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border2); }
+
+/* Name screen */
+#screen-name { justify-content: center; gap: 20px; }
+.screen-title { font-size: 22px; font-weight: 600; }
+.screen-sub { font-size: 14px; color: var(--muted); margin-top: -12px; }
+.back-btn { background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; padding: 0; text-align: left; }
+
+/* Create */
+#screen-create { gap: 16px; padding-top: 20px; }
+.game-grid { display: flex; flex-direction: column; gap: 12px; }
+.game-card { background: var(--surface); border: 1.5px solid var(--border2); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: border-color 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+.game-card.active { border-color: var(--accent); background: rgba(124,110,245,0.08); }
+.game-card-title { font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.game-card-desc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* Lobby */
+#screen-lobby { gap: 16px; padding-top: 20px; }
+.code-box { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 20px; text-align: center; cursor: pointer; }
+.code-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.code-value { font-size: 48px; font-weight: 700; letter-spacing: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.code-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.game-badge { background: var(--surface2); border: 1px solid var(--border2); border-radius: 30px; padding: 6px 14px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.players-section { flex: 1; }
+.players-header { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.players-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.player-chip { background: var(--surface); border: 1px solid var(--border2); border-radius: 30px; padding: 8px 14px; font-size: 14px; }
+#lobby-waiting { font-size: 14px; color: var(--muted); text-align: center; padding: 12px 0; }
+
+/* Game screen */
+#screen-game { gap: 0; padding: 0; }
+.game-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.game-header-title { font-size: 18px; font-weight: 600; }
+#game-area { flex: 1; padding: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* Game center layout */
+.game-center { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 20px 0; gap: 8px; }
+.game-big { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.game-sub { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+/* Hot potato */
+.potato-bomb { font-size: 90px; animation: bounce 1s infinite; }
+.timer-ring { font-size: 36px; font-weight: 700; width: 90px; height: 90px; border-radius: 50%; background: rgba(249,115,22,0.15); border: 3px solid #f97316; display: flex; align-items: center; justify-content: center; color: #f97316; margin: 8px 0; }
+.pass-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+.pass-btn { padding: 12px 20px; background: var(--accent); border: none; border-radius: 30px; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pass-btn:active { opacity: 0.8; }
+
+/* Closest guess */
+.guess-results { display: flex; flex-direction: column; gap: 14px; }
+.target-reveal { font-size: 24px; font-weight: 700; text-align: center; padding: 16px; background: var(--surface); border-radius: var(--radius-sm); }
+.results-list { display: flex; flex-direction: column; gap: 8px; }
+.result-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--surface); border-radius: var(--radius-sm); font-size: 14px; }
+.result-row.me { border: 1px solid var(--accent); }
+.scores-section { background: var(--surface); border-radius: var(--radius-sm); padding: 14px; }
+.score-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.score-row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+.score-row.me { color: var(--accent); font-weight: 600; }
+.guess-input-row { width: 100%; }
+
+/* Murder */
+.murder-wrap { display: flex; flex-direction: column; gap: 14px; }
+.round-badge { background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 6px 14px; font-size: 13px; display: inline-block; }
+.vote-list { display: flex; flex-direction: column; gap: 10px; }
+.vote-btn { padding: 14px; background: var(--surface); border: 1.5px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: border-color 0.15s; }
+.vote-btn:active { border-color: var(--danger); background: rgba(239,68,68,0.08); }
+.log-section { display: flex; flex-direction: column; gap: 6px; }
+.log-line { font-size: 13px; color: var(--muted); background: var(--surface); border-radius: var(--radius-sm); padding: 8px 12px; }
+.roles-reveal { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; width: 100%; max-width: 280px; }
+.role-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 14px; }
+.role-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+.role-badge.murderer { background: rgba(239,68,68,0.15); color: #ef4444; }
+.role-badge.detective { background: rgba(34,197,94,0.15); color: #22c55e; }
+.role-badge.civilian { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+/* Waiting dots */
+.waiting-dots { display: flex; gap: 4px; justify-content: center; margin-top: 8px; }
+.waiting-dots span { font-size: 24px; color: var(--accent); animation: dot 1.2s infinite; }
+.waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+.waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Toast */
+.toast { position: fixed; bottom: calc(env(safe-area-inset-bottom,0px) + 28px); left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border2); border-radius: 30px; padding: 11px 20px; font-size: 13px; color: var(--text); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); z-index: 100; white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Animations */
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+@keyframes dot { 0%,80%,100%{opacity:0.3} 40%{opacity:1} }
+</style>
 </head>
 <body>
 <div id="app">
-  <div class="header">
-    <div>
-      <div class="logo">QRDrop ✦</div>
-      <div class="logo-sub">Generate & scan QR codes</div>
-    </div>
-  </div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('generate')">⚡ Generate</button>
-    <button class="tab" onclick="switchTab('scan')">📷 Scan</button>
-  </div>
-
-  <!-- GENERATE TAB -->
-  <div class="content" id="tab-generate">
-    <div class="input-wrap">
-      <input class="url-input" id="url-input" type="url" placeholder="Paste any link here..." oninput="onInput(this)" />
-      <button class="clear-input" id="clear-btn" onclick="clearInput()">✕</button>
-    </div>
-
-    <div class="color-section">
-      <div class="color-label">QR Color</div>
-      <div class="color-row" id="color-row">
-        <div class="color-swatch active" style="background:#000000" data-color="#000000" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#7c6ef5" data-color="#7c6ef5" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#e879f9" data-color="#e879f9" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#f97316" data-color="#f97316" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#22c55e" data-color="#22c55e" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#ef4444" data-color="#ef4444" onclick="pickColor(this)"></div>
-        <div class="color-swatch" style="background:#0ea5e9" data-color="#0ea5e9" onclick="pickColor(this)"></div>
-        <div class="color-custom" onclick="document.getElementById('custom-color').click()">🎨</div>
-        <input type="color" id="custom-color" onchange="setCustomColor(this.value)" />
-      </div>
-    </div>
-
-    <button class="gen-btn" id="gen-btn" onclick="generate()" disabled>Generate QR Code</button>
-
-    <div id="qr-card-wrap"></div>
-  </div>
-
-  <!-- SCAN TAB -->
-  <div class="content hidden" id="tab-scan">
-    <div class="scanner-wrap hidden" id="scanner-wrap">
-      <video id="scan-video" autoplay playsinline muted></video>
-      <div class="scan-overlay">
-        <div class="scan-frame"></div>
-        <div class="scan-line"></div>
-      </div>
-    </div>
-    <button class="start-scan-btn" id="start-scan-btn" onclick="startScan()">📷 &nbsp;Start Camera Scanner</button>
-    <div id="scan-result-wrap"></div>
-  </div>
+<!-- HOME -->
+<div class="screen" id="screen-home">
+<div class="home-hero">
+<div class="home-icon">🎮</div>
+<div class="home-title">GameRoom</div>
+<div class="home-sub">Play with your friends, anywhere</div>
+</div>
+<button class="btn-primary" onclick="goCreate()">Create Room</button>
+<div class="divider" style="margin:16px 0">or</div>
+<button class="btn-outline" onclick="goJoin()">Join Room</button>
 </div>
 
+<!-- NAME -->
+<div class="screen hidden" id="screen-name">
+<button class="back-btn" style="margin-bottom:24px;margin-top:8px" onclick="goBack()">← Back</button>
+<div class="screen-title">What's your name?</div>
+<div class="screen-sub" style="margin:8px 0 20px;color:var(--muted);font-size:14px">Your friends will see this in the room</div>
+<input class="url-input" id="name-input" type="text" placeholder="Enter your name..." maxlength="16" style="margin-bottom:16px" onkeydown="if(event.key==='Enter')submitName()" />
+<button class="btn-primary" onclick="submitName()">Continue →</button>
+</div>
+
+<!-- CREATE -->
+<div class="screen hidden" id="screen-create">
+<button class="back-btn" style="margin-bottom:20px" onclick="goBack()">← Back</button>
+<div class="screen-title" style="margin-bottom:4px">Pick a game</div>
+<div style="font-size:14px;color:var(--muted);margin-bottom:20px">Choose what you want to play</div>
+<div class="game-grid" style="flex:1">
+<div class="game-card" onclick="selectGame(this,'hotpotato')">
+<div class="game-card-title">🥔 Hot Potato</div>
+<div class="game-card-desc">Pass the potato before it explodes. Last one holding it loses!</div>
+</div>
+<div class="game-card" onclick="selectGame(this,'closestguess')">
+<div class="game-card-title">🎯 Closest Guess</div>
+<div class="game-card-desc">Guess a mystery number 1-1000. Closest guess wins the round!</div>
+</div>
+<div class="game-card" onclick="selectGame(this,'murder')">
+<div class="game-card-title">🔪 Murder Mystery</div>
+<div class="game-card-desc">One murderer, one detective, civilians. Vote out the killer!</div>
+</div>
+</div>
+<button class="btn-primary" id="start-room-btn" style="margin-top:16px" onclick="createRoom()" disabled>Create Room</button>
+</div>
+
+<!-- JOIN -->
+<div class="screen hidden" id="screen-join">
+<button class="back-btn" style="margin-bottom:24px;margin-top:8px" onclick="goBack()">← Back</button>
+<div class="screen-title">Join a room</div>
+<div style="font-size:14px;color:var(--muted);margin:8px 0 20px">Ask your friend for their room code</div>
+<input class="url-input" id="join-input" type="text" placeholder="Enter room code..." maxlength="4" style="text-transform:uppercase;letter-spacing:6px;font-size:24px;text-align:center;margin-bottom:16px" onkeydown="if(event.key==='Enter')joinRoom()" />
+<button class="btn-primary" onclick="joinRoom()">Join Game →</button>
+</div>
+
+<!-- LOBBY -->
+<div class="screen hidden" id="screen-lobby">
+<div style="margin-bottom:20px;margin-top:8px">
+<div style="font-size:13px;color:var(--muted);margin-bottom:6px">Playing</div>
+<div class="game-badge" id="lobby-game"></div>
+</div>
+<div class="code-box" onclick="copyCode()">
+<div class="code-label">Room Code — tap to copy</div>
+<div class="code-value" id="lobby-code"></div>
+<div class="code-hint">Share this with friends</div>
+</div>
+<div class="players-section" style="margin-top:16px">
+<div class="players-header">Players (<span id="player-count">1</span>)</div>
+<div class="players-grid" id="players-list"></div>
+</div>
+<div id="lobby-waiting" style="display:none">Waiting for host to start...</div>
+<button class="btn-primary" id="lobby-start-btn" style="margin-top:auto;padding-top:16px" onclick="startGame()">Start Game →</button>
+</div>
+
+<!-- GAME -->
+<div class="screen hidden" id="screen-game">
+<div class="game-header">
+<button class="back-btn" onclick="playAgain()">← Leave</button>
+<div class="game-header-title" id="game-title"></div>
+</div>
+<div id="game-area"></div>
+</div>
+
+</div>
 <div class="toast" id="toast"></div>
-
-<script>
-  let qrColor = '#000000';
-  let scanStream = null;
-  let scanInterval = null;
-  let activeTab = 'generate';
-
-  // ── Tab switching ──
-  function switchTab(tab) {
-    activeTab = tab;
-    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='generate')||(i===1&&tab==='scan')));
-    document.getElementById('tab-generate').classList.toggle('hidden', tab !== 'generate');
-    document.getElementById('tab-scan').classList.toggle('hidden', tab !== 'scan');
-    if (tab !== 'scan') stopScan();
-  }
-
-  // ── Input ──
-  function onInput(el) {
-    document.getElementById('clear-btn').style.display = el.value ? 'flex' : 'none';
-    document.getElementById('gen-btn').disabled = !el.value.trim();
-  }
-  function clearInput() {
-    const el = document.getElementById('url-input');
-    el.value = ''; onInput(el);
-    document.getElementById('qr-card-wrap').innerHTML = '';
-  }
-
-  // ── Color ──
-  function pickColor(el) {
-    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-    el.classList.add('active');
-    qrColor = el.dataset.color;
-  }
-  function setCustomColor(val) {
-    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-    qrColor = val;
-  }
-
-  // ── Generate ──
-  function generate() {
-    const url = document.getElementById('url-input').value.trim();
-    if (!url) return;
-
-    const wrap = document.getElementById('qr-card-wrap');
-    wrap.innerHTML = `
-      <div class="qr-card">
-        <div id="qr-output"></div>
-        <div class="qr-url">${escapeHtml(url)}</div>
-        <div class="action-row">
-          <button class="action-btn" onclick="copyLink()">🔗 Copy Link</button>
-          <button class="action-btn primary" onclick="saveQR()">⬇ Save QR</button>
-        </div>
-      </div>
-    `;
-
-    new QRCode(document.getElementById('qr-output'), {
-      text: url, width: 220, height: 220,
-      colorDark: qrColor, colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.H
-    });
-  }
-
-  function copyLink() {
-    const url = document.getElementById('url-input').value.trim();
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied ✓')).catch(() => showToast('Copy failed'));
-  }
-
-  function saveQR() {
-    const canvas = document.querySelector('#qr-output canvas');
-    if (!canvas) return showToast('Generate a QR first');
-    const link = document.createElement('a');
-    link.download = 'qrdrop.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    showToast('Saved to downloads ✓');
-  }
-
-  // ── Scanner ──
-  async function startScan() {
-    try {
-      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      document.getElementById('scan-video').srcObject = scanStream;
-      document.getElementById('scanner-wrap').classList.remove('hidden');
-      document.getElementById('start-scan-btn').classList.add('hidden');
-      startDecoding();
-    } catch(e) { showToast('Camera access denied'); }
-  }
-
-  function stopScan() {
-    if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
-    document.getElementById('scanner-wrap').classList.add('hidden');
-    document.getElementById('start-scan-btn').classList.remove('hidden');
-  }
-
-  function startDecoding() {
-    const video = document.getElementById('scan-video');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    scanInterval = setInterval(() => {
-      if (!video.videoWidth) return;
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      try {
-        // Use BarcodeDetector if available (Chrome/Android)
-        if ('BarcodeDetector' in window) {
-          const detector = new BarcodeDetector({ formats: ['qr_code'] });
-          detector.detect(canvas).then(codes => {
-            if (codes.length > 0) onScanned(codes[0].rawValue);
-          });
-        }
-      } catch(e) {}
-    }, 300);
-  }
-
-  function onScanned(result) {
-    stopScan();
-    const isUrl = result.startsWith('http://') || result.startsWith('https://');
-    document.getElementById('scan-result-wrap').innerHTML = `
-      <div class="scan-result">
-        <div class="scan-result-label">Scanned Result</div>
-        <div class="scan-result-url">${escapeHtml(result)}</div>
-        <div class="action-row">
-          <button class="action-btn" onclick="navigator.clipboard.writeText('${escapeHtml(result)}').then(()=>showToast('Copied ✓'))">🔗 Copy</button>
-          ${isUrl ? `<button class="action-btn primary" onclick="window.open('${escapeHtml(result)}','_blank')">🌐 Open</button>` : ''}
-          <button class="action-btn" onclick="makeQRFromScan('${escapeHtml(result)}')">⚡ Make QR</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function makeQRFromScan(url) {
-    switchTab('generate');
-    const input = document.getElementById('url-input');
-    input.value = url; onInput(input);
-    generate();
-  }
-
-  function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-  }
-</script>
 </body>
 </html>
